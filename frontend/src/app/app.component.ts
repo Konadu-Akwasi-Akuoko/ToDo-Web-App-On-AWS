@@ -1,21 +1,16 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterOutlet } from '@angular/router';
-import { HlmInputDirective } from '../components/ui-input-helm/src/lib/hlm-input.directive';
-import { InputButtonComponent } from '../components/button/addToDoInput.component';
+import { InputTextDirective } from './lib/directives/input-text.directive';
+import { ButtonDirective } from './lib/directives/button.directive';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [
-    CommonModule,
-    RouterOutlet,
-    HlmInputDirective,
-    InputButtonComponent,
-  ],
+  imports: [CommonModule, RouterOutlet, InputTextDirective, ButtonDirective],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css',
 })
 export class AppComponent {
-  title = 'frontend';
+  title = 'ToDo';
 }
