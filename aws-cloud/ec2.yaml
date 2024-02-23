@@ -1,0 +1,78 @@
+Parameters:
+  FirstAvailabilityZone:
+    Description: The Availability Zone of the first subnet
+    Type: AWS::EC2::AvailabilityZone::Name
+    Default: eu-west-2a
+  SecondAvailabilityZone:
+    Description: The Availability Zone of the second subnet
+    Type: AWS::EC2::AvailabilityZone::Name
+    Default: eu-west-2b
+Resources:
+  WebsiteVpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/24
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      InstanceTenancy: default
+      Tags:
+        - Key: Name
+          Value: website-vpc
+        - Key: Unit
+          Value: vpc
+        - Key: User
+          Value: akwasi
+  FirstPrivateSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref WebsiteVpc
+      CidrBlock: 10.0.0.64/26
+      AvailabilityZone: !Ref FirstAvailabilityZone
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: website-private-subnet-1
+        - Key: Unit
+          Value: subnet
+        - Key: User
+          Value: akwasi
+  SecondPrivateSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref WebsiteVpc
+      CidrBlock: 10.0.0.128/26
+      AvailabilityZone: !Ref SecondAvailabilityZone
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: website-private-subnet-2
+        - Key: Unit
+          Value: subnet
+        - Key: User
+          Value: akwasi
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: website-igw
+        - Key: Unit
+          Value: internet-gateway
+        - Key: User
+          Value: akwasi
+  AttachGatewayToVPC:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref WebsiteVpc
+      InternetGatewayId: !Ref InternetGateway
+  RouteTableForSubnets:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref WebsiteVpc
+      Tags:
+        - Key: Name
+          Value: akwasi-public-route-table
+        - Key: Unit
+          Value: route-table
+        - Key: User
+          Value: akwasi
