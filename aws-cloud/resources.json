@@ -1,6 +1,8 @@
 {
-  "s3": {
+  "create-s3-bucket.sh": {
     "bucket-name": "akwasi-angular-website",
-    "link-to-my-bucket": "http://akwasi-angular-website.s3.amazonaws.com/"
+    "output": {
+      "link-to-my-bucket": "http://akwasi-angular-website.s3.amazonaws.com/"
+    }
   }
 }
