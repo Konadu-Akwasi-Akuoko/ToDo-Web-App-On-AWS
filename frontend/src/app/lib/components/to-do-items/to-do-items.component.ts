@@ -34,4 +34,8 @@ export class ToDoItemsComponent implements OnInit, OnDestroy {
   handleMarking(id: number) {
     this.todoItemService.markingItem({ id });
   }
+
+  handleDelete(id: number) {
+    this.todoItemService.removeItem({ id });
+  }
 }

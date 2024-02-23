@@ -21,7 +21,6 @@
       <button
         type="button"
         button
-        [class]="'h-12'"
         [size]="'sm'"
         [variant]="'default'"
         [class]="'h-7'"
@@ -32,22 +31,12 @@
       <button
         type="button"
         button
-        [class]="'h-12'"
         [size]="'sm'"
         [variant]="'destructive'"
-        [class]="'h-7'"
+        [class]="'h-7 bg-red-400 hover:bg-red-500'"
+        (click)="handleDelete(item.id)"
       >
         Delete
-      </button>
-      <button
-        type="button"
-        button
-        [class]="'h-12'"
-        [size]="'sm'"
-        [variant]="'secondary'"
-        [class]="'h-7 ring ring-slate-200'"
-      >
-        Remove from List
       </button>
     </div>
   </div>

@@ -6,22 +6,19 @@ import { ToDoItem } from '../classes/ToDoItem';
   providedIn: 'root',
 })
 export class ToDoItemsService {
-  constructor() {}
-
-  private todoItems: ToDoItem[] = [
-    new ToDoItem(
-      1,
-      'Buy Groceries',
-      'Go to the store and buy groceries',
-      false
-    ),
-    new ToDoItem(2, 'Do Laundry', 'Wash and fold clothes', false),
-    new ToDoItem(3, 'Mow the Lawn', 'Mow the front and back yard', false),
-    new ToDoItem(4, 'Clean the House', 'Vacuum and dust the house', false),
-    new ToDoItem(5, 'Walk the Dog', 'Take the dog for a walk', false),
-  ];
-
+  private todoItems: ToDoItem[] = [];
   todoItemsUpdated = new Subject<ToDoItem[]>();
+
+  constructor() {
+    const storedItems = localStorage.getItem('todoItems');
+    if (storedItems) {
+      this.todoItems = JSON.parse(storedItems);
+    }
+  }
+
+  private updateLocalStorage() {
+    localStorage.setItem('todoItems', JSON.stringify(this.todoItems));
+  }
 
   getToDoItems() {
     return this.todoItems;
@@ -31,8 +28,8 @@ export class ToDoItemsService {
     this.todoItems.push(
       new ToDoItem(this.todoItems.length + 1, title, description, false)
     );
-    console.log(this.todoItems);
     this.todoItemsUpdated.next(this.todoItems.slice()); // Emit the updated todo items
+    this.updateLocalStorage();
   }
 
   markingItem({ id }: { id: number }) {
@@ -40,6 +37,16 @@ export class ToDoItemsService {
     if (itemIndex !== -1) {
       this.todoItems[itemIndex].complete = !this.todoItems[itemIndex].complete;
       this.todoItemsUpdated.next(this.todoItems); // Emit the updated todo items
+      this.updateLocalStorage();
+    }
+  }
+
+  removeItem({ id }: { id: number }) {
+    const itemIndex = this.todoItems.findIndex((item) => item.id === id);
+    if (itemIndex !== -1) {
+      this.todoItems.splice(itemIndex, 1);
+      this.todoItemsUpdated.next(this.todoItems); // Emit the updated todo items
+      this.updateLocalStorage();
     }
   }
 }
