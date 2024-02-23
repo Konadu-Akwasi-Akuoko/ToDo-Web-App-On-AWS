@@ -1,13 +1,13 @@
-import { EventEmitter, Injectable } from '@angular/core';
-import { ToDoItem } from '../classes/ToDoItem';
+import { Injectable } from '@angular/core';
 import { Subject } from 'rxjs';
+import { ToDoItem } from '../classes/ToDoItem';
 
 @Injectable({
   providedIn: 'root',
 })
 export class ToDoItemsService {
   constructor() {}
-  
+
   private todoItems: ToDoItem[] = [
     new ToDoItem(
       1,
@@ -21,7 +21,7 @@ export class ToDoItemsService {
     new ToDoItem(5, 'Walk the Dog', 'Take the dog for a walk', false),
   ];
 
-  todoItemsUpdated = new EventEmitter<ToDoItem[]>();
+  todoItemsUpdated = new Subject<ToDoItem[]>();
 
   getToDoItems() {
     return this.todoItems;
@@ -32,14 +32,14 @@ export class ToDoItemsService {
       new ToDoItem(this.todoItems.length + 1, title, description, false)
     );
     console.log(this.todoItems);
-    this.todoItemsUpdated.emit(this.todoItems.slice()); // Emit the updated todo items
+    this.todoItemsUpdated.next(this.todoItems.slice()); // Emit the updated todo items
   }
 
-  markItemAsDone({ id }: { id: number }) {
+  markingItem({ id }: { id: number }) {
     const itemIndex = this.todoItems.findIndex((item) => item.id === id);
     if (itemIndex !== -1) {
-      this.todoItems[itemIndex].complete = true;
-      this.todoItemsUpdated.emit(this.todoItems); // Emit the updated todo items
+      this.todoItems[itemIndex].complete = !this.todoItems[itemIndex].complete;
+      this.todoItemsUpdated.next(this.todoItems); // Emit the updated todo items
     }
   }
 }
