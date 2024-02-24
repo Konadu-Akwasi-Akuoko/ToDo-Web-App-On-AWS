@@ -92,7 +92,7 @@ Resources:
       RouteTableId: !Ref RouteTableForPublicSubnets
       DestinationCidrBlock: 0.0.0.0/0
       GatewayId: !Ref InternetGateway
-  PrivateSecurityGroup:
+  PublicSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Security group for network access for the instances
@@ -101,11 +101,7 @@ Resources:
         - IpProtocol: tcp
           FromPort: 80
           ToPort: 80
-          CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
-          FromPort: 443
-          ToPort: 443
-          CidrIp: 0.0.0.0/0
+          SourceSecurityGroupId: !GetAtt LoadBalancerSecurityGroup.GroupId
         - IpProtocol: tcp
           FromPort: 443
           ToPort: 443
@@ -164,7 +160,7 @@ Resources:
       ImageId: ami-0e5f882be1900e43b
       InstanceType: t2.micro
       SecurityGroups:
-        - !Ref PrivateSecurityGroup
+        - !Ref PublicSecurityGroup
       BlockDeviceMappings:
         - DeviceName: /dev/sda1
           Ebs:

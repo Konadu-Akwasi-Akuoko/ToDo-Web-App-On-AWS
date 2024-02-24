@@ -1,0 +1,106 @@
+Parameters:
+  FirstAvailabilityZone:
+    Description: The Availability Zone of the first subnet
+    Type: AWS::EC2::AvailabilityZone::Name
+    Default: eu-west-2a
+Resources:
+  WebsiteVpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 192.168.0.0/18
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      InstanceTenancy: default
+  FirstPublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref WebsiteVpc
+      CidrBlock: 192.168.0.1/23
+      AvailabilityZone: !Ref FirstAvailabilityZone
+      MapPublicIpOnLaunch: true
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: website-igw
+        - Key: Unit
+          Value: internet-gateway
+        - Key: User
+          Value: akwasi
+  AttachGatewayToVPC:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref WebsiteVpc
+      InternetGatewayId: !Ref InternetGateway
+  RouteTableForPublicSubnets:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref WebsiteVpc
+  FirstPublicSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref FirstPublicSubnet
+      RouteTableId: !Ref RouteTableForPublicSubnets
+  PublicSubnetRoute1:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref RouteTableForPublicSubnets
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+  PublicSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for network access for the instances
+      VpcId: !Ref WebsiteVpc
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: "-1"
+          CidrIp: 0.0.0.0/0
+  EC2LaunchConfiguration:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      ImageId: ami-0e5f882be1900e43b
+      InstanceType: t2.micro
+      SecurityGroups:
+        - !Ref PublicSecurityGroup
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeSize: 8
+            VolumeType: gp2
+      UserData: !Base64 |
+        #!/bin/bash
+        sudo apt update -y
+        sudo apt install git -y
+        git clone https://github.com/Calebosam/aws-hackathon.git
+        curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+        source ~/.bashrc
+        nvm install --lts
+        cd aws-hackathon/
+        cd client/
+        npm install
+        npm run dev
+  EC2AutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AvailabilityZones:
+        - !Ref FirstAvailabilityZone
+      LaunchConfigurationName: !Ref EC2LaunchConfiguration
+      MinSize: "1"
+      MaxSize: "1"
+      DesiredCapacity: "1"
+      VPCZoneIdentifier:
+        - !Ref FirstPublicSubnet
