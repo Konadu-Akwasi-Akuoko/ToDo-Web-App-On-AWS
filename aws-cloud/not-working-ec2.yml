@@ -11,7 +11,7 @@ Resources:
   WebsiteVpc:
     Type: AWS::EC2::VPC
     Properties:
-      CidrBlock: 192.168.0.0/18
+      CidrBlock: 10.0.0.0/20
       EnableDnsSupport: true
       EnableDnsHostnames: true
       InstanceTenancy: default
@@ -22,11 +22,39 @@ Resources:
           Value: vpc
         - Key: User
           Value: akwasi
+  FirstPrivateSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref WebsiteVpc
+      CidrBlock: 10.0.0.64/26
+      AvailabilityZone: !Ref FirstAvailabilityZone
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: website-private-subnet-1
+        - Key: Unit
+          Value: subnet
+        - Key: User
+          Value: akwasi
+  SecondPrivateSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref WebsiteVpc
+      CidrBlock: 10.0.1.0/26
+      AvailabilityZone: !Ref SecondAvailabilityZone
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: website-private-subnet-2
+        - Key: Unit
+          Value: subnet
+        - Key: User
+          Value: akwasi
   FirstPublicSubnet:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref WebsiteVpc
-      CidrBlock: 192.168.0.1/23
+      CidrBlock: 10.0.0.128/26
       AvailabilityZone: !Ref FirstAvailabilityZone
       MapPublicIpOnLaunch: true
       Tags:
@@ -40,7 +68,7 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref WebsiteVpc
-      CidrBlock: 192.168.3.0/23
+      CidrBlock: 10.0.0.192/26
       AvailabilityZone: !Ref SecondAvailabilityZone
       MapPublicIpOnLaunch: true
       Tags:
@@ -65,6 +93,42 @@ Resources:
     Properties:
       VpcId: !Ref WebsiteVpc
       InternetGatewayId: !Ref InternetGateway
+  FirstNatGatewayElasticIp:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+  FirstNatGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt FirstNatGatewayElasticIp.AllocationId
+      SubnetId: !Ref FirstPublicSubnet
+  RouteTableForPrivateSubnets:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref WebsiteVpc
+      Tags:
+        - Key: Name
+          Value: akwasi-route-table-for-private-subnets
+        - Key: Unit
+          Value: route-table
+        - Key: User
+          Value: akwasi
+  FirstPrivateSubnetRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref RouteTableForPrivateSubnets
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref FirstNatGateway
+  FirstPrivateSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref FirstPrivateSubnet
+      RouteTableId: !Ref RouteTableForPrivateSubnets
+  SecondPrivateSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref SecondPrivateSubnet
+      RouteTableId: !Ref RouteTableForPrivateSubnets
   RouteTableForPublicSubnets:
     Type: AWS::EC2::RouteTable
     Properties:
@@ -187,8 +251,8 @@ Resources:
       MaxSize: '3'
       DesiredCapacity: '1'
       VPCZoneIdentifier:
-        - !Ref FirstPublicSubnet
-        - !Ref SecondPublicSubnet
+        - !Ref FirstPrivateSubnet
+        - !Ref SecondPrivateSubnet
       TargetGroupARNs:
         - !Ref LoadBalancerTargetGroup
       Tags:
