@@ -11,7 +11,7 @@ Resources:
   WebsiteVpc:
     Type: AWS::EC2::VPC
     Properties:
-      CidrBlock: 10.0.0.0/24
+      CidrBlock: 10.0.0.0/20
       EnableDnsSupport: true
       EnableDnsHostnames: true
       InstanceTenancy: default
@@ -28,7 +28,7 @@ Resources:
       VpcId: !Ref WebsiteVpc
       CidrBlock: 10.0.0.64/26
       AvailabilityZone: !Ref FirstAvailabilityZone
-      MapPublicIpOnLaunch: true
+      MapPublicIpOnLaunch: false
       Tags:
         - Key: Name
           Value: website-private-subnet-1
@@ -40,12 +40,40 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref WebsiteVpc
+      CidrBlock: 10.0.1.0/26
+      AvailabilityZone: !Ref SecondAvailabilityZone
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: website-private-subnet-2
+        - Key: Unit
+          Value: subnet
+        - Key: User
+          Value: akwasi
+  FirstPublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref WebsiteVpc
       CidrBlock: 10.0.0.128/26
+      AvailabilityZone: !Ref FirstAvailabilityZone
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: website-public-subnet-1
+        - Key: Unit
+          Value: subnet
+        - Key: User
+          Value: akwasi
+  SecondPublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref WebsiteVpc
+      CidrBlock: 10.0.0.192/26
       AvailabilityZone: !Ref SecondAvailabilityZone
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
-          Value: website-private-subnet-2
+          Value: website-public-subnet-2
         - Key: Unit
           Value: subnet
         - Key: User
@@ -65,14 +93,225 @@ Resources:
     Properties:
       VpcId: !Ref WebsiteVpc
       InternetGatewayId: !Ref InternetGateway
-  RouteTableForSubnets:
+  FirstNatGatewayElasticIp:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+  FirstNatGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt FirstNatGatewayElasticIp.AllocationId
+      SubnetId: !Ref FirstPublicSubnet
+  RouteTableForPrivateSubnets:
     Type: AWS::EC2::RouteTable
     Properties:
       VpcId: !Ref WebsiteVpc
       Tags:
         - Key: Name
-          Value: akwasi-public-route-table
+          Value: akwasi-route-table-for-private-subnets
         - Key: Unit
           Value: route-table
         - Key: User
           Value: akwasi
+  FirstPrivateSubnetRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref RouteTableForPrivateSubnets
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref FirstNatGateway
+  FirstPrivateSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref FirstPrivateSubnet
+      RouteTableId: !Ref RouteTableForPrivateSubnets
+  SecondPrivateSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref SecondPrivateSubnet
+      RouteTableId: !Ref RouteTableForPrivateSubnets
+  RouteTableForPublicSubnets:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref WebsiteVpc
+      Tags:
+        - Key: Name
+          Value: akwasi-route-table-for-public-subnets
+        - Key: Unit
+          Value: route-table
+        - Key: User
+          Value: akwasi
+  FirstPublicSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref FirstPublicSubnet
+      RouteTableId: !Ref RouteTableForPublicSubnets
+  SecondPublicSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref SecondPublicSubnet
+      RouteTableId: !Ref RouteTableForPublicSubnets
+  PublicSubnetRoute1:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref RouteTableForPublicSubnets
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+  PrivateSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for network access for the instances
+      VpcId: !Ref WebsiteVpc
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: '-1'
+          CidrIp: 0.0.0.0/0
+  LoadBalancerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for ALB
+      VpcId: !Ref WebsiteVpc
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: '-1'
+          CidrIp: 0.0.0.0/0
+  WebsiteLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: WebsiteLoadBalancer
+      Subnets:
+        - !Ref FirstPublicSubnet
+        - !Ref SecondPublicSubnet
+      SecurityGroups:
+        - !Ref LoadBalancerSecurityGroup
+      Scheme: internet-facing
+      Type: application
+  LoadBalancerTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: WebsiteLoadBalancerTargetGroup
+      Port: 80
+      Protocol: HTTP
+      VpcId: !Ref WebsiteVpc
+      TargetType: instance
+  LoadBalancerListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref LoadBalancerTargetGroup
+      LoadBalancerArn: !Ref WebsiteLoadBalancer
+      Port: 80
+      Protocol: HTTP
+  EC2LaunchConfiguration:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      ImageId: ami-0e5f882be1900e43b
+      InstanceType: t2.micro
+      SecurityGroups:
+        - !Ref PrivateSecurityGroup
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeSize: 8
+            VolumeType: gp2
+      UserData: !Base64 |
+        #!/bin/bash
+        sudo apt-get update
+        sudo apt-get install nginx -y
+        systemctl enable nginx
+        systemctl start nginx
+  EC2AutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AvailabilityZones:
+        - !Ref FirstAvailabilityZone
+        - !Ref SecondAvailabilityZone
+      LaunchConfigurationName: !Ref EC2LaunchConfiguration
+      MinSize: '1'
+      MaxSize: '3'
+      DesiredCapacity: '1'
+      VPCZoneIdentifier:
+        - !Ref FirstPrivateSubnet
+        - !Ref SecondPrivateSubnet
+      TargetGroupARNs:
+        - !Ref LoadBalancerTargetGroup
+      Tags:
+        - Key: Name
+          Value: angular-website-auto-scaling-group
+          PropagateAtLaunch: true
+        - Key: Unit
+          Value: autoscaling-group
+          PropagateAtLaunch: true
+        - Key: User
+          Value: akwasi
+          PropagateAtLaunch: true
+  ScaleupUpPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AdjustmentType: ChangeInCapacity
+      AutoScalingGroupName: !Ref EC2AutoScalingGroup
+      Cooldown: '120'
+      ScalingAdjustment: 1
+      PolicyType: SimpleScaling
+  ScaledDownPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AdjustmentType: ChangeInCapacity
+      AutoScalingGroupName: !Ref EC2AutoScalingGroup
+      Cooldown: '120'
+      ScalingAdjustment: -1
+      PolicyType: SimpleScaling
+  CloudWatchCPUHigh:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      ActionsEnabled: true
+      AlarmDescription: Alarm if CPU too high or metric disappears indicating instance is down
+      Namespace: AWS/EC2
+      MetricName: CPUUtilization
+      Statistic: Average
+      Period: '120'
+      EvaluationPeriods: 1
+      Threshold: 50
+      AlarmActions:
+        - !Ref ScaleupUpPolicy
+      Dimensions:
+        - Name: AutoScalingGroupName
+          Value: !Ref EC2AutoScalingGroup
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+  CloudWatchCPULow:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      ActionsEnabled: true
+      AlarmDescription: Alarm if CPU too low
+      Namespace: AWS/EC2
+      MetricName: CPUUtilization
+      Statistic: Average
+      Period: '120'
+      EvaluationPeriods: 1
+      Threshold: 20
+      AlarmActions:
+        - !Ref ScaledDownPolicy
+      Dimensions:
+        - Name: AutoScalingGroupName
+          Value: !Ref EC2AutoScalingGroup
+      ComparisonOperator: LessThanOrEqualToThreshold
