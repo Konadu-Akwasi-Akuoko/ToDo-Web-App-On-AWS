@@ -101,13 +101,13 @@ Resources:
         - IpProtocol: tcp
           FromPort: 80
           ToPort: 80
-          SourceSecurityGroupId: !GetAtt LoadBalancerSecurityGroup.GroupId
+          CidrIp: 0.0.0.0/0
         - IpProtocol: tcp
-          FromPort: 443
-          ToPort: 443
+          FromPort: 22
+          ToPort: 22
           CidrIp: 0.0.0.0/0
       SecurityGroupEgress:
-        - IpProtocol: '-1'
+        - IpProtocol: "-1"
           CidrIp: 0.0.0.0/0
   LoadBalancerSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -124,7 +124,7 @@ Resources:
           ToPort: 443
           CidrIp: 0.0.0.0/0
       SecurityGroupEgress:
-        - IpProtocol: '-1'
+        - IpProtocol: "-1"
           CidrIp: 0.0.0.0/0
   WebsiteLoadBalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
@@ -168,10 +168,19 @@ Resources:
             VolumeType: gp2
       UserData: !Base64 |
         #!/bin/bash
-        sudo apt-get update
-        sudo apt-get install nginx -y
-        systemctl enable nginx
-        systemctl start nginx
+        sudo apt update -y
+        sudo apt install git -y
+        git clone https://github.com/Konadu-Akwasi-Akuoko/ToDo-Web-App-On-AWS.git
+        curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+        source ~/.bashrc
+        nvm install --lts
+        # install angular on the instance
+        npm install -g @angular/cli
+        source ~/.bashrc
+        cd ~/ToDo-Web-App-On-AWS
+        cd frontend
+        npm install
+        ng serve --host 0.0.0.0 --disable-host-check
   EC2AutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
@@ -179,9 +188,9 @@ Resources:
         - !Ref FirstAvailabilityZone
         - !Ref SecondAvailabilityZone
       LaunchConfigurationName: !Ref EC2LaunchConfiguration
-      MinSize: '1'
-      MaxSize: '3'
-      DesiredCapacity: '1'
+      MinSize: "1"
+      MaxSize: "3"
+      DesiredCapacity: "1"
       VPCZoneIdentifier:
         - !Ref FirstPublicSubnet
         - !Ref SecondPublicSubnet
@@ -202,7 +211,7 @@ Resources:
     Properties:
       AdjustmentType: ChangeInCapacity
       AutoScalingGroupName: !Ref EC2AutoScalingGroup
-      Cooldown: '120'
+      Cooldown: "120"
       ScalingAdjustment: 1
       PolicyType: SimpleScaling
   ScaledDownPolicy:
@@ -210,7 +219,7 @@ Resources:
     Properties:
       AdjustmentType: ChangeInCapacity
       AutoScalingGroupName: !Ref EC2AutoScalingGroup
-      Cooldown: '120'
+      Cooldown: "120"
       ScalingAdjustment: -1
       PolicyType: SimpleScaling
   CloudWatchCPUHigh:
@@ -221,7 +230,7 @@ Resources:
       Namespace: AWS/EC2
       MetricName: CPUUtilization
       Statistic: Average
-      Period: '120'
+      Period: "120"
       EvaluationPeriods: 1
       Threshold: 50
       AlarmActions:
@@ -238,7 +247,7 @@ Resources:
       Namespace: AWS/EC2
       MetricName: CPUUtilization
       Statistic: Average
-      Period: '120'
+      Period: "120"
       EvaluationPeriods: 1
       Threshold: 20
       AlarmActions:
